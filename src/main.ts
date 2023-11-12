@@ -14,7 +14,15 @@ import {
 import { SampleSettingTab } from './setting-tab'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
+import Logger from './log'
 
+interface Settings {
+  logPath: string
+}
+
+const DEFAULT_SETTINGS = {
+  logPath: './logs',
+}
 /**
  * The plugin.
  *
@@ -26,11 +34,16 @@ import * as path from 'node:path'
  */
 export default class SamplePlugin extends Plugin {
   basePath: string
-  moveFails: Array<string> = []
+  settings: Settings
+  clogs: Logger
+
   constructor(app: App, manifest: PluginManifest) {
     super(app, manifest)
     this.basePath = ''
-    this.moveFails = []
+    this.settings = DEFAULT_SETTINGS
+    // FIXME: ts类型问题  E:\docs\obsidian-plugin
+    this.basePath = (this.app.vault.adapter as any).basePath
+    this.clogs = new Logger(this.settings.logPath)
   }
   /**
    * This method runs when the plugin is enabled or updated.
@@ -41,13 +54,15 @@ export default class SamplePlugin extends Plugin {
    *
    * 这将是您设置插件大部分功能的地方.
    */
-  onload() {
+  async onload() {
+    // 加载设置
+    await this.loadSettings()
     /**
      * Register the plugin setting-tab.
      *
      * 注册插件设置页.
      */
-    // this.addSettingTab(new SampleSettingTab(this.app, this))
+    this.addSettingTab(new SampleSettingTab(this.app, this))
     /**
      * 功能区（左侧的侧边栏）
      */
@@ -55,9 +70,14 @@ export default class SamplePlugin extends Plugin {
     //   console.log('Hello, you!')
     // })
     console.log(this.app.vault.getRoot(), 'onload')
-    // FIXME: ts类型问题
-    this.basePath = (this.app.vault.adapter as any).basePath
-    console.log(this.basePath)
+    // 初始化日志
+    const logsPath = path.join(
+      this.basePath,
+      '.obsidian/plugins/obsidian-automoveimg-plugin',
+      this.settings.logPath
+    )
+    this.clogs = new Logger(logsPath)
+
     this.registerEvent(
       this.app.vault.on('rename', async (file, oldPath) => {
         console.log(file, oldPath)
@@ -74,7 +94,6 @@ export default class SamplePlugin extends Plugin {
 
   async handleFileMove(file: TAbstractFile, oldPath: string) {
     const content = await this.app.vault.read(file as TFile)
-    console.log(content)
     //  ![xxx](images/xxxx.xxx) ![xxx](../images/xxxx.xxx)
     const regex = /!\[.*?\]\((.*?)\)/g
     // !\[.*?\]\(images\/([^\/]*\.[^\/]*)\) => ![](images/xx.xx)
@@ -82,7 +101,6 @@ export default class SamplePlugin extends Plugin {
     // const regex = /!\[.*?\]\(images\/([^\/]*\.[^\/]*)\)/g
     const matches = content.match(regex)
     if (matches) {
-      // 判断将要移动的文件夹是否存在
       const oldStartPaths = oldPath.split('/').slice(0, -1)
       // B/A/A.md'.split('/').slice(0,-1) => B/A
       const newStartPaths = file.path.split('/').slice(0, -1)
@@ -91,6 +109,7 @@ export default class SamplePlugin extends Plugin {
         newStartPaths.join('/'),
         'images'
       )
+      // 判断将要移动的文件夹是否存在
       try {
         await fs.access(newFolder, fs.constants.F_OK)
       } catch {
@@ -106,9 +125,9 @@ export default class SamplePlugin extends Plugin {
           // TODO: 只支持images/开头的 其他的../images暂不支持
           if (imageName.startsWith('images/')) {
             const moveOldPath = path.join(
-              this.basePath,
-              oldStartPaths.join('/'),
-              imageName
+              this.basePath, //  E:\docs\obsidian-plugin
+              oldStartPaths.join('/'), // A/A-inner文件夹
+              imageName // images/xxx.png
             )
             const moveNewPath = path.join(
               this.basePath,
@@ -118,9 +137,9 @@ export default class SamplePlugin extends Plugin {
             console.log(moveOldPath, moveNewPath)
             this.moveImage(moveOldPath, moveNewPath)
           } else {
-            console.log('暂不支持移动的images', imageName)
             const notice = new Notice(`暂不支持移动的${imageName}`, 3000)
-            this.moveFails.push(imageName)
+            console.log('暂不支持移动的images', imageName)
+            this.clogs.log(`暂不支持移动的${imageName}`)
           }
         } else {
           console.error('提取括号中的图片路径失败')
@@ -140,15 +159,24 @@ export default class SamplePlugin extends Plugin {
     try {
       await fs.rename(oldPath, newPath)
       console.log(`Image moved from ${oldPath} to ${newPath}`)
+      // TODO: 文件夹下内容为空 删除文件夹？？
     } catch (error) {
       // 通知
       const notice = new Notice(
         `Failed to move image from ${oldPath} to ${newPath}`,
         3000
       )
-      this.moveFails.push(oldPath)
       console.error(`Failed to move image from ${oldPath} to ${newPath}`, error)
+      this.clogs.log(`Failed to move image from ${oldPath} to ${newPath}`)
     }
+  }
+
+  async loadSettings() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData())
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings)
   }
   /**
    * This method runs when the plugin is disabled.

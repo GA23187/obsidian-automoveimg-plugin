@@ -62,3 +62,9 @@
 ## 排除 macOS 访达的视图状态文件.
 ##
 /**/.DS_Store
+
+##
+## Exclude logs files.
+##
+## 排除日志
+logs
