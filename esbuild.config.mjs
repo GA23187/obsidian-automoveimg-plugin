@@ -60,6 +60,7 @@ If you want to view the source, please visit the GitHub repo of this plugin.
  * ESbuild 的配置.
  */
 const esbuildContext = await esbuild.context({
+    platform: "node",
     /**
      * Inline any imported dependencies into the file itself.
      * 
