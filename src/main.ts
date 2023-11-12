@@ -55,7 +55,8 @@ export default class SamplePlugin extends Plugin {
     //   console.log('Hello, you!')
     // })
     console.log(this.app.vault.getRoot(), 'onload')
-    this.basePath = this.app.vault.adapter.basePath
+    // FIXME: ts类型问题
+    this.basePath = (this.app.vault.adapter as any).basePath
     console.log(this.basePath)
     this.registerEvent(
       this.app.vault.on('rename', async (file, oldPath) => {
@@ -64,7 +65,7 @@ export default class SamplePlugin extends Plugin {
           'getResourcePath>>>',
           this.app.vault.getResourcePath(file as TFile)
         )
-        if (file.extension === 'md') {
+        if ((file as any).extension === 'md') {
           await this.handleFileMove(file, oldPath)
         }
       })
