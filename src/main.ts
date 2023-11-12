@@ -69,7 +69,7 @@ export default class SamplePlugin extends Plugin {
     // this.addRibbonIcon('dice', 'Print to console', () => {
     //   console.log('Hello, you!')
     // })
-    console.log(this.app.vault.getRoot(), 'onload')
+
     // 初始化日志
     const logsPath = path.join(
       this.basePath,
@@ -77,14 +77,14 @@ export default class SamplePlugin extends Plugin {
       this.settings.logPath
     )
     this.clogs = new Logger(logsPath)
-
+    // 监听文件变动
     this.registerEvent(
       this.app.vault.on('rename', async (file, oldPath) => {
-        console.log(file, oldPath)
-        console.log(
-          'getResourcePath>>>',
-          this.app.vault.getResourcePath(file as TFile)
-        )
+        // console.log(file, oldPath)
+        // console.log(
+        //   'getResourcePath>>>',
+        //   this.app.vault.getResourcePath(file as TFile)
+        // )
         if ((file as any).extension === 'md') {
           await this.handleFileMove(file, oldPath)
         }
@@ -113,13 +113,13 @@ export default class SamplePlugin extends Plugin {
       try {
         await fs.access(newFolder, fs.constants.F_OK)
       } catch {
-        const notice = new Notice(`创建${newFolder}`, 1000)
+        const notice = new Notice(`创建${newFolder}`, 3000)
         await fs.mkdir(newFolder)
       }
       const result = matches.map((match) => {
         // 提取括号中的图片路径
         const imgs = match.match(/\((.*?)\)/)
-        console.log('括号中的图片路径>>>', imgs)
+        // console.log('括号中的图片路径>>>', imgs)
         if (imgs) {
           const imageName = imgs?.[1]
           // TODO: 只支持images/开头的 其他的../images暂不支持
@@ -134,11 +134,11 @@ export default class SamplePlugin extends Plugin {
               newStartPaths.join('/'),
               imageName
             )
-            console.log(moveOldPath, moveNewPath)
+            // console.log(moveOldPath, moveNewPath)
             this.moveImage(moveOldPath, moveNewPath)
           } else {
             const notice = new Notice(`暂不支持移动的${imageName}`, 3000)
-            console.log('暂不支持移动的images', imageName)
+            // console.log('暂不支持移动的images', imageName)
             this.clogs.log(`暂不支持移动的${imageName}`)
           }
         } else {
@@ -146,7 +146,6 @@ export default class SamplePlugin extends Plugin {
         }
         return imgs?.[1]
       })
-      console.log(result, 'imageName')
     }
 
     // TODO: obsidian内置会自动调整笔记中的images地址 此时我们又移动了images的实际地址?
@@ -158,7 +157,7 @@ export default class SamplePlugin extends Plugin {
     // 使用适当的文件操作方法将图片从旧位置移动到新位置
     try {
       await fs.rename(oldPath, newPath)
-      console.log(`Image moved from ${oldPath} to ${newPath}`)
+      // console.log(`Image moved from ${oldPath} to ${newPath}`)
       // TODO: 文件夹下内容为空 删除文件夹？？
     } catch (error) {
       // 通知
@@ -166,7 +165,7 @@ export default class SamplePlugin extends Plugin {
         `Failed to move image from ${oldPath} to ${newPath}`,
         3000
       )
-      console.error(`Failed to move image from ${oldPath} to ${newPath}`, error)
+      // console.error(`Failed to move image from ${oldPath} to ${newPath}`, error)
       this.clogs.log(`Failed to move image from ${oldPath} to ${newPath}`)
     }
   }
